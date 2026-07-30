@@ -1,6 +1,7 @@
 package com.nerdginger.workoutmate
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -120,6 +121,11 @@ class RestTimer(
         )
     }
 
+    // The POST_NOTIFICATIONS check is the first line of this function, but lint's
+    // permission analysis doesn't follow the guard across a helper call, so it
+    // flags the notify() below. The guard is real — suppressing the false
+    // positive rather than duplicating the check inline.
+    @SuppressLint("MissingPermission")
     private fun showNotification(remainingSec: Int) {
         if (!canPostNotifications()) return
         val intent = Intent(activity, MainActivity::class.java)
