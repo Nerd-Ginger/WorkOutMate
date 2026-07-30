@@ -25,8 +25,13 @@ jobs:
       - name: Unit tests
         run: node --test tests/*.test.mjs
 
-      - name: Install Chromium for the browser smoke test
-        run: npx --yes playwright install --with-deps chromium
+      # Two separate things: the package has to be resolvable by the test's
+      # require(), and the browser binary has to be downloaded. `playwright
+      # install` alone only does the second.
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
 
       # Drives the real UI: IndexedDB persistence across a reload, the session
       # logger, PR detection, charts, and the backup round trip.
@@ -52,14 +57,16 @@ jobs:
       - name: Build debug APK
         run: ./gradlew --no-daemon assembleDebug
 
-      - name: Lint
-        run: ./gradlew --no-daemon lintDebug
-
+      # Uploaded before lint runs: lint is slow, and a lint failure should not
+      # cost you an APK that already built.
       - uses: actions/upload-artifact@v4
         with:
           name: workoutmate-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Lint
+        run: ./gradlew --no-daemon lintDebug
 
       - name: Upload lint report
         if: failure()

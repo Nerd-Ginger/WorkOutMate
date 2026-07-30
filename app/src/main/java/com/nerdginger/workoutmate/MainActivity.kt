@@ -131,7 +131,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        restTimer.cancel()
+        // Cancel silently: notifying would try to call into a WebView that is
+        // about to be destroyed.
+        restTimer.cancel(notify = false)
         webView.destroy()
         super.onDestroy()
     }
