@@ -1,0 +1,9 @@
+{
+  "name": "workoutmate-tests",
+  "private": true,
+  "type": "module",
+  "description": "Test harness only. The app itself has no npm dependencies — this file exists so Node treats the ESM modules under app/src/main/assets/www/js as modules.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

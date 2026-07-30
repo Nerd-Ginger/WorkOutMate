@@ -1,0 +1,200 @@
+{
+  "id": "build-me-a-routine",
+  "version": 1,
+  "title": "Build me a routine",
+  "description": "A fixed question script and output contract, so the same answers always produce the same prompt and the result always maps onto the app's routine model.",
+
+  "questions": [
+    {
+      "id": "goal",
+      "label": "What's your main goal?",
+      "type": "single",
+      "required": true,
+      "options": [
+        { "value": "strength", "label": "Get stronger" },
+        { "value": "hypertrophy", "label": "Build muscle" },
+        { "value": "general", "label": "General fitness" },
+        { "value": "fatloss", "label": "Lose fat / stay lean" },
+        { "value": "endurance", "label": "Endurance" }
+      ]
+    },
+    {
+      "id": "experience",
+      "label": "How long have you been training?",
+      "type": "single",
+      "required": true,
+      "options": [
+        { "value": "beginner", "label": "Under 6 months" },
+        { "value": "intermediate", "label": "6 months to 2 years" },
+        { "value": "advanced", "label": "Over 2 years" }
+      ]
+    },
+    {
+      "id": "daysPerWeek",
+      "label": "How many days a week can you train?",
+      "type": "single",
+      "required": true,
+      "options": [
+        { "value": "2", "label": "2 days" },
+        { "value": "3", "label": "3 days" },
+        { "value": "4", "label": "4 days" },
+        { "value": "5", "label": "5 days" },
+        { "value": "6", "label": "6 days" }
+      ]
+    },
+    {
+      "id": "sessionLength",
+      "label": "How long is a session?",
+      "type": "single",
+      "required": true,
+      "options": [
+        { "value": "30", "label": "About 30 minutes" },
+        { "value": "45", "label": "About 45 minutes" },
+        { "value": "60", "label": "About an hour" },
+        { "value": "90", "label": "90 minutes or more" }
+      ]
+    },
+    {
+      "id": "equipment",
+      "label": "What equipment do you have?",
+      "type": "multi",
+      "required": true,
+      "options": [
+        { "value": "full_gym", "label": "Full commercial gym" },
+        { "value": "barbell", "label": "Barbell and rack" },
+        { "value": "dumbbells", "label": "Dumbbells" },
+        { "value": "machines", "label": "Machines" },
+        { "value": "cables", "label": "Cables" },
+        { "value": "kettlebells", "label": "Kettlebells" },
+        { "value": "bands", "label": "Resistance bands" },
+        { "value": "bodyweight", "label": "Bodyweight only" }
+      ]
+    },
+    {
+      "id": "limitations",
+      "label": "Any injuries or movements to avoid?",
+      "type": "text",
+      "required": false,
+      "placeholder": "e.g. dodgy left shoulder, no overhead pressing"
+    },
+    {
+      "id": "split",
+      "label": "Preferred split?",
+      "type": "single",
+      "required": true,
+      "options": [
+        { "value": "auto", "label": "You decide" },
+        { "value": "full_body", "label": "Full body" },
+        { "value": "upper_lower", "label": "Upper / lower" },
+        { "value": "ppl", "label": "Push / pull / legs" },
+        { "value": "body_part", "label": "Body part split" }
+      ]
+    },
+    {
+      "id": "units",
+      "label": "Which units do you use?",
+      "type": "single",
+      "required": true,
+      "options": [
+        { "value": "kg", "label": "Kilograms" },
+        { "value": "lb", "label": "Pounds" }
+      ]
+    },
+    {
+      "id": "extra",
+      "label": "Anything else worth knowing?",
+      "type": "text",
+      "required": false,
+      "placeholder": "e.g. training for a half marathon in April"
+    }
+  ],
+
+  "systemPrompt": "You are an experienced strength coach writing a training programme that will be imported directly into a workout tracking app.\n\nRules:\n- Produce one routine per training day. A routine is an ordered list of blocks; a block holds one exercise, or several when they are performed as a superset.\n- Use plain, widely recognised exercise names (\"Barbell Bench Press\", not \"BB Bench\" or a brand name). The app matches names against its own library, so conventional naming means fewer duplicates.\n- Every exercise needs a target set count and a target rep range. Give an RPE target between 1 and 10 for each.\n- Rest is given in seconds per block. Heavy compound work generally wants more rest than isolation work.\n- Respect the stated equipment. Do not prescribe a movement the person cannot perform with what they have.\n- Respect the stated injuries and limitations strictly. If something rules out a common movement, choose an alternative rather than omitting the muscle group.\n- Fit the session length. Roughly, a 45 minute session supports about 5 to 6 blocks; 90 minutes supports about 8 to 10.\n- Put the progression scheme in progressionNotes: how to add weight or reps, and what to do on a stalled lift.\n\nYou are writing a training plan, not medical advice. If the person describes an injury that needs professional assessment, say so briefly in the summary and program around it conservatively.\n\nReturn only the JSON object described by the schema. No commentary before or after it.",
+
+  "outputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schema", "programName", "summary", "progressionNotes", "routines"],
+    "properties": {
+      "schema": {
+        "type": "string",
+        "enum": ["workoutmate.routine-plan.v1"],
+        "description": "Always the literal string workoutmate.routine-plan.v1"
+      },
+      "programName": { "type": "string", "description": "Short name for the whole programme" },
+      "summary": { "type": "string", "description": "Two or three sentences on how the programme works" },
+      "progressionNotes": { "type": "string", "description": "How to progress week to week, and what to do when a lift stalls" },
+      "routines": {
+        "type": "array",
+        "description": "One entry per training day",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "notes", "blocks"],
+          "properties": {
+            "name": { "type": "string", "description": "e.g. Day A - Upper" },
+            "notes": { "type": "string", "description": "Optional guidance for this day; empty string if none" },
+            "blocks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["type", "restSec", "items"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["single", "superset"],
+                    "description": "Use superset when the items are performed back to back"
+                  },
+                  "restSec": { "type": "integer", "description": "Rest between sets, in seconds" },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "exerciseName",
+                        "muscleGroups",
+                        "equipment",
+                        "targetSets",
+                        "targetRepsMin",
+                        "targetRepsMax",
+                        "targetRpe",
+                        "notes"
+                      ],
+                      "properties": {
+                        "exerciseName": { "type": "string" },
+                        "muscleGroups": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "chest", "back", "shoulders", "biceps", "triceps", "forearms",
+                              "quads", "hamstrings", "glutes", "calves", "core", "cardio", "other"
+                            ]
+                          }
+                        },
+                        "equipment": {
+                          "type": "string",
+                          "enum": [
+                            "barbell", "dumbbell", "machine", "cable",
+                            "bodyweight", "kettlebell", "band", "other"
+                          ]
+                        },
+                        "targetSets": { "type": "integer" },
+                        "targetRepsMin": { "type": "integer" },
+                        "targetRepsMax": { "type": "integer" },
+                        "targetRpe": { "type": "integer", "description": "1 to 10" },
+                        "notes": { "type": "string", "description": "Empty string if none" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
