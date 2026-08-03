@@ -3,10 +3,10 @@
 What this app is for and how we'd know it worked. Written after a first
 implementation pass, from the original brief and the decisions taken since.
 
-> **Status: draft, unconfirmed.** Statements marked **[stated]** are the owner's
-> own words. Statements marked **[inferred]** are my reading and have not been
-> confirmed — correct anything wrong. Open questions are collected at the end,
-> and several of them are load-bearing.
+> **Status: current as of the v2 rewrite.** Statements marked **[stated]** are
+> the owner's own words; **[inferred]** ones are a reading that has not been
+> confirmed. `docs/PLAN.md` is the implementation roadmap — this file is *why*,
+> that file is *how*.
 
 ---
 
@@ -15,9 +15,15 @@ implementation pass, from the original brief and the decisions taken since.
 > "routines can have target reps but overall this is ment to map out effort and
 > chart progress" **[stated]**
 
-Everything else follows from that sentence. This is not a workout *planner* and
-not a coaching app — it is an instrument for recording effort accurately and
-seeing what it added up to. Where a feature helps you see change over time it
+This was the founding sentence and it still governs the *logging* half of the
+app. It is no longer the whole story: the audience answer below widened the job
+to include helping someone **find** a programme and **maintain** it, which is a
+larger claim than "instrument". Both are true now, and where they conflict —
+see the note under Desired outcomes — the conflict is called out rather than
+resolved silently.
+
+This is still not a coaching app: it suggests, it does not decide. And the
+original test still applies — where a feature helps you see change over time it
 belongs; where it doesn't, it probably doesn't.
 
 Two consequences worth stating explicitly, because they drove real decisions:
@@ -57,14 +63,15 @@ sacrifice.
 So: the owner first, but not only the owner. Two words in that sentence carry
 real weight and should be read deliberately —
 
-- **"find"** — if people struggle to work out *what* to train, then "Build me a
-  routine" is not a convenience bolted onto a logger; it is close to the front
-  door. That is a bigger claim than the current build makes, and it is flagged
-  as **D5** below rather than assumed.
-- **"maintain"** — adherence is part of the problem, not just recording. The
-  current app is deliberately passive: no notifications, no streaks, no
-  nudging. That was the right call for a single informed user and is an open
-  question for this wider audience. Also **D5**.
+- **"find"** — if people struggle to work out *what* to train, then getting you
+  a programme is not a convenience bolted onto a logger; it is the front door.
+  **Acted on:** first run leads with it, and there are built-in starter
+  programmes for people who won't touch an API key.
+- **"maintain"** — adherence is part of the problem, not just recording. v1 was
+  deliberately passive: no notifications, no streaks, no nudging. **Acted on:**
+  scheduling, "what's due today", one reminder a day and consistency feedback.
+  This is the single biggest change from v1, and it was a reversal of the
+  original design rather than an extension of it.
 
 The immediate practical consequence: **anyone who isn't the owner cannot be
 asked for an Anthropic API key.** That effectively settles the routine-builder
@@ -97,7 +104,18 @@ Stated requirements, in the owner's framing:
   question list lives in a versioned JSON asset rather than in prose: the same
   answers must always produce the same request.
 
-Feature scope selected for v1:
+Added in v2, from the "find … and maintain them" audience answer:
+
+- **Finding is the front door.** First run leads with getting you a programme —
+  a built-in starter or one Claude writes — rather than an empty logger.
+- **What's due today.** Programmes schedule routines by weekday, by rotation, or
+  against a weekly target, and the home screen answers the question directly.
+- **Reminders**, best-effort, on training days and after a missed session.
+- **Consistency feedback** — sessions against target, week streaks, heatmap.
+- **Progression suggestions** — every set prefills with a suggested next step
+  and a one-line reason. Always overridable. See D5.
+
+Feature scope:
 
 | Group | Included |
 |---|---|
@@ -105,23 +123,29 @@ Feature scope selected for v1:
 | Rest timer + PR detection | Auto-start rest between sets; automatic best-e1RM, best-weight, best-volume records |
 | Bodyweight + measurements | Separate log and chart |
 | Supersets, RPE, warm-up sets | Richer set metadata; supersets in the routine builder |
+| **Programmes and scheduling** | Starter library, weekday/rotation/flexible scheduling, "what's due today", missed-session handling |
+| **Adherence** | Reminders, consistency strip, week streaks |
+| **Progression** | Per-item progression rules, suggested next set with rationale |
 
 ## Desired outcomes
 
-**[inferred — needs confirmation, see Q4]** A good version of this means:
+**[inferred]** A good version of this means:
 
 1. Logging a set during a workout is fast enough that you actually do it, rather
    than writing it on your phone's notepad and never transcribing it.
 2. After a few months, the charts answer "am I actually getting stronger?"
    without you having to do arithmetic.
 3. You can change phones, or wipe the app, without losing your training history.
-4. You never think about the app between workouts — no notifications to
-   dismiss, no feed, no streak guilt.
+4. ~~You never think about the app between workouts — no notifications to
+   dismiss, no feed, no streak guilt.~~ **Superseded.** This was written before
+   the audience answer, and it directly contradicts helping someone *maintain* a
+   programme, which usually needs some prompting. Resolved in favour of
+   maintenance, but narrowly: **at most one reminder a day, suppressed entirely
+   once you've trained, and never a guilt mechanic.** The home screen — not a
+   notification — is always the source of truth for what's due.
 
-Point 4 is now in open tension with "anyone else who struggles to … maintain
-them". Helping someone stick to a programme usually means *some* prompting, and
-this app currently does none. Both positions are defensible; they are not both
-true at once. See **D5**.
+   The original instinct survives as a constraint rather than a goal: the app
+   gets to speak once a day and no more.
 
 ## Constraints that shaped the build
 
@@ -145,14 +169,19 @@ by accident:
 - A social feed, sharing, or leaderboards
 - Exercise demonstration videos or images
 - Wearables, heart rate, step counting, health-platform integration
-- Automated progression or auto-regulated deloads — the app records what you
-  did, it doesn't decide what you should do next
 - Nutrition or calorie tracking
-- iOS
+- Play Store distribution (sideloaded APKs for now)
+- ~~iOS~~ — still not built, but no longer excluded on principle. The core is
+  structured so adding a target is additive rather than a rewrite.
+- ~~Automated progression or auto-regulated deloads~~ — **narrowly reversed by
+  D5.** The app now suggests a next step and shows why, but never applies one.
+  The distinction that keeps this a non-goal in spirit: **it prefills a field
+  you can overtype.** It never writes a number you did not accept, and it stops
+  suggesting increases on a lift you keep overriding downward.
 
 ## Success criteria
 
-**[inferred — needs confirmation, see Q4]** Proposed, in rough priority order:
+**[inferred]** Proposed, in rough priority order:
 
 1. **It doesn't lose data.** A logged set is still there after a force-stop, an
    app update, and a backup/restore cycle. This is the one that matters; a
@@ -164,74 +193,45 @@ by accident:
 4. **It stays out of the way.** No maintenance, no accounts to re-auth, no
    surprises.
 
-## Open decisions
+## Decisions
 
-These are genuinely unresolved and are recorded here rather than settled
-quietly. The first two were decided during implementation *without* sign-off and
-should be treated as provisional.
+All confirmed with the owner. D1–D3 were open in the first draft and are now
+settled; the rest came out of the v2 replan.
 
-### D1 — HTML in a WebView, or fully native? **(provisional)**
+| # | Decision |
+|---|---|
+| **D1** | **Kotlin Multiplatform + Compose Multiplatform.** The WebView/HTML UI is deleted. Was provisional; now decided outright. |
+| **D2** | **The Claude API key lives in Kotlin**, in Keystore-backed storage. No port exposes a getter — the UI can ask *whether* a key exists and ask for a call to be *made*, never read it back. A copy/paste path needing no key and no network is always available, and is the **primary** route. |
+| **D3** | **No web version.** Superseded by D1 rather than deferred; a web build is no longer cheap and is not planned. |
+| **D4** | **Distribution: sideloaded debug APKs from CI.** Play Store would need signing keys, a privacy policy, store assets and a target-API commitment. Not v1. |
+| **D5** | **Progression suggests, the user decides.** Eight rules, all pure and tested: double progression, RPE guard, deload after two stalls, loadable-weight rounding, per-set matching, auto-quiet on repeated downward overrides. Every suggestion carries a one-line reason. If a rule can't be explained in one sentence, it doesn't ship. |
+| **D6** | **Scheduling supports weekday, rotation and flexible**, chosen per programme. |
+| **D7** | **One big v1**, not staged delivery. |
+| **D8** | **No legacy data to preserve** — v1 was never used in anger. A v1 backup importer is built anyway, cheaply, as insurance. |
+| **D9** | **Default units: pounds.** Storage is kilograms regardless. |
+| **D10** | **Audience: the owner alone for now.** No onboarding for strangers in v1 — but see the open question below, because it is the one thing the audience answer implies and v1 does not deliver. |
 
-The original brief asked for both an APK and a single HTML page. That was later
-changed to "drop web version, only do an android build" **[stated]**, alongside
-selecting a "native WebView wrapper" for packaging — which by definition renders
-HTML.
+### Architectural decisions worth knowing
 
-**Taken as:** no separate web deliverable, but HTML/CSS/JS remains the UI *inside*
-the APK. **Not confirmed.** If the intent was fully native (Compose + Room), the
-UI and storage layers would need rewriting; the data model, Kotlin shell, and
-routine-builder contract would survive.
+Recorded in `docs/PLAN.md` in full. The three that constrain everything else:
 
-### D2 — Where the Claude API key lives **(provisional)**
+- **`core` is a separate Gradle build with no Android plugin**, so all logic
+  compiles and tests in seconds with no SDK. Its repository list declares only
+  Maven Central, which makes adding an androidx dependency fail immediately
+  rather than silently rotting the testable half.
+- **The session log is the only source of truth.** Rotation position, streaks,
+  consistency, suggestions and personal records are pure functions of it. Storing
+  any of them would desynchronise the moment a backup was merged — and merging is
+  a first-class operation here.
+- **Weights are stored in kilograms, always.** Storing whichever unit was
+  selected would make every chart and record depend on a preference the user can
+  change.
 
-Never answered. **Taken as:** the HTTP call is made from Kotlin, the key is held
-in Keystore-backed storage, and the web layer can request that a call be made
-but can never read the key back. A copy/paste path that needs no key and no
-network is always available alongside it.
+## Still open
 
-### D3 — Is the web version dropped or deferred?
-
-"skip the web html completely now" **[stated]** — the "now" reads as deferral
-rather than cancellation, but that hasn't been confirmed. It matters: the
-current architecture keeps a web build cheap, and a fully native rewrite would
-close that door permanently.
-
-### D4 — Distribution
-
-Undecided. Currently debug-signed APKs from CI, suitable for sideloading. Play
-Store release would require signing keys, a privacy policy, store assets, and a
-target-API commitment.
-
-### D5 — How far does "find the right workouts and maintain them" go?
-
-Raised by the audience answer, not yet decided. The app as built is a logger
-with an optional routine generator and no adherence features at all. Taking the
-sentence at full strength would change its centre of gravity:
-
-- **Finding** — does "Build me a routine" become the primary entry point (open
-  the app, answer nine questions, get a programme), rather than something you
-  reach for once? Does the app need built-in starter programmes for people with
-  no key and no appetite for copy/paste?
-- **Maintaining** — does the app do anything to keep you coming back? Scheduled
-  reminders, a "you're due for Day B" prompt, and streak or consistency views
-  are all standard in this category and all currently absent by design.
-
-**Nothing has been built for either.** Recorded here for a decision rather than
-inferred, because it would meaningfully change what the app is.
-
----
-
-## Questions I still need answered
-
-1. **Web version: dropped or deferred?** (D3)
-2. **How far does the "find and maintain" goal go?** (D5) — this is the biggest
-   open question in the document; the answer decides whether the app stays a
-   logger or grows into something that also coaches adherence.
-3. **What does "done" look like?** Is there a moment where you'd stop building
-   and just use it, or is this an ongoing project? It decides whether to invest
-   in polish or in extensibility.
-4. **kg or lb?** Both are supported and switchable; this only affects the
-   default.
-5. **Do the "anyone else" users get onboarding?** Exercise explanations, an RPE
-   primer, a guided first routine — none of it exists. Cheap to add later,
-   awkward to retrofit if the audience answer is taken seriously now.
+1. **Do the "anyone else" users get onboarding?** No exercise explanations, no
+   RPE primer, no guided first routine. Fine for the owner; a real gap against
+   the stated audience. Cheap to add, awkward to retrofit.
+2. **What does "done" look like?** Whether there is a point where this stops
+   being built and starts just being used decides how much to invest in polish
+   versus extensibility.
