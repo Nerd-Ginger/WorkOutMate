@@ -1,0 +1,33 @@
+-- Key/value preferences. Kept in the database rather than in platform
+-- preference storage for one reason: settings travel in the backup envelope,
+-- and a second store outside the database would silently not round-trip.
+--
+-- Secrets are the exception and deliberately do NOT live here — the Anthropic
+-- API key is held in platform keystore-backed storage behind the SecretStore
+-- port, and never enters the database or a backup file.
+CREATE TABLE setting (
+    key        TEXT NOT NULL PRIMARY KEY,
+    value      TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+get:
+SELECT value FROM setting WHERE key = ?;
+
+getAll:
+SELECT key, value, updated_at FROM setting;
+
+-- INSERT OR REPLACE rather than ON CONFLICT ... DO UPDATE, and that is a
+-- compatibility requirement, not a style preference. Upsert syntax needs
+-- SQLite 3.24, which only reached Android at API 30; minSdk 26 ships SQLite
+-- 3.18. SQLDelight's default dialect is 3.18 for exactly this reason, and it
+-- rejects the upsert form at build time.
+--
+-- Safe here because the row has no foreign keys pointing at it: REPLACE
+-- deletes then re-inserts, which would cascade if anything referenced it.
+upsert:
+INSERT OR REPLACE INTO setting(key, value, updated_at)
+VALUES (?, ?, ?);
+
+delete:
+DELETE FROM setting WHERE key = ?;

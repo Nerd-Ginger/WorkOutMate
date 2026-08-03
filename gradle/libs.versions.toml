@@ -1,21 +1,49 @@
+# Single source of truth for both builds: the Android build at the repo root and
+# the AGP-free `core` build, which reads this file explicitly from its own
+# settings.gradle.kts. Entries the core build never references (AGP, androidx,
+# Compose) are harmless there — catalog entries are lazy.
+#
+# Rule: nothing floats. A version bump is its own commit with its own CI run,
+# because Kotlin/Compose/AGP/SQLDelight misalignment only ever fails at build
+# time, and the Android half of that cannot be built in every environment.
+
 [versions]
+# Held deliberately: this is the AGP version CI is already green on.
 agp = "8.11.1"
 kotlin = "2.1.0"
-coreKtx = "1.15.0"
-appcompat = "1.7.0"
-activity = "1.10.0"
-webkit = "1.12.1"
+composeMultiplatform = "1.7.3"
+sqldelight = "2.0.2"
+serialization = "1.8.0"
+datetime = "0.6.1"
+coroutines = "1.10.1"
+
+androidxActivityCompose = "1.10.0"
+# Alpha, and Jetpack Security is deprecated upstream. Isolated behind the
+# SecretStore port so replacing it with hand-rolled Keystore AES/GCM is a
+# one-file swap.
 securityCrypto = "1.1.0-alpha06"
-junit = "4.13.2"
 
 [libraries]
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
-androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activity" }
-androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "datetime" }
+
+sqldelight-runtime = { group = "app.cash.sqldelight", name = "runtime", version.ref = "sqldelight" }
+sqldelight-coroutines = { group = "app.cash.sqldelight", name = "coroutines-extensions", version.ref = "sqldelight" }
+# JVM/JDBC driver — used by tests so the suite runs against real SQLite locally.
+sqldelight-sqlite-driver = { group = "app.cash.sqldelight", name = "sqlite-driver", version.ref = "sqldelight" }
+# Android driver — referenced only by the :app build.
+sqldelight-android-driver = { group = "app.cash.sqldelight", name = "android-driver", version.ref = "sqldelight" }
+
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidxActivityCompose" }
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
-junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
+sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
