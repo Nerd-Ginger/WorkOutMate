@@ -1,0 +1,94 @@
+-- A programme is the thing that answers "what am I training today". It owns an
+-- ordered set of slots, each pointing at a routine (or at nothing, for an
+-- explicit rest day in a rotation).
+--
+-- `schedule_kind` picks how the slots are read:
+--   'weekday'  — each slot is pinned to an ISO weekday (1=Mon .. 7=Sun)
+--   'rotation' — slots run in `position` order, gated by rotation_gap_days
+--   'flexible' — no fixed day; just hit weekly_target sessions
+--
+-- Deliberately absent: any "current rotation position" column. Position is
+-- derived from the session log every time it is needed. Stored derived state
+-- desynchronises the instant a backup is merged, and merging is a first-class
+-- operation in this app.
+CREATE TABLE program (
+    id                 TEXT    NOT NULL PRIMARY KEY,
+    name               TEXT    NOT NULL,
+    notes              TEXT    NOT NULL DEFAULT '',
+    -- 'starter' | 'ai' | 'manual' | 'imported'
+    source             TEXT    NOT NULL DEFAULT 'manual',
+    -- Starter programme id, or the skill version that produced it.
+    source_ref         TEXT,
+    schedule_kind      TEXT    NOT NULL DEFAULT 'flexible',
+    rotation_gap_days  INTEGER NOT NULL DEFAULT 1,
+    weekly_target      INTEGER,
+    -- 'YYYY-MM-DD' in local time. Anchors a rotation that has no history yet.
+    started_on         TEXT,
+    is_active          INTEGER NOT NULL DEFAULT 0,
+    created_at         INTEGER NOT NULL,
+    updated_at         INTEGER NOT NULL,
+    deleted_at         INTEGER
+);
+
+-- Child of program, and NOT a merge unit: no updated_at, no deleted_at. When an
+-- incoming programme wins on updated_at its slots are deleted and reinserted
+-- wholesale, which reproduces the old embedded-JSON merge semantics exactly
+-- while still giving each slot a durable id for sessions to point at.
+CREATE TABLE program_slot (
+    id          TEXT    NOT NULL PRIMARY KEY,
+    program_id  TEXT    NOT NULL,
+    position    INTEGER NOT NULL,
+    routine_id  TEXT,
+    -- ISO 1..7, only meaningful when schedule_kind = 'weekday'.
+    weekday     INTEGER,
+    label       TEXT    NOT NULL DEFAULT ''
+);
+
+CREATE INDEX program_slot_program_idx ON program_slot(program_id, position);
+
+selectAllPrograms:
+SELECT * FROM program;
+
+selectLivePrograms:
+SELECT * FROM program WHERE deleted_at IS NULL ORDER BY is_active DESC, updated_at DESC;
+
+selectActiveProgram:
+SELECT * FROM program WHERE is_active = 1 AND deleted_at IS NULL LIMIT 1;
+
+selectProgramById:
+SELECT * FROM program WHERE id = ?;
+
+upsertProgram:
+INSERT OR REPLACE INTO program(
+    id, name, notes, source, source_ref, schedule_kind, rotation_gap_days,
+    weekly_target, started_on, is_active, created_at, updated_at, deleted_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- Activation is exclusive: at most one programme drives the Today screen.
+clearActiveFlags:
+UPDATE program SET is_active = 0, updated_at = ? WHERE is_active = 1;
+
+setActive:
+UPDATE program SET is_active = 1, updated_at = ? WHERE id = ?;
+
+softDeleteProgram:
+UPDATE program SET deleted_at = ?, updated_at = ? WHERE id = ?;
+
+deleteAllPrograms:
+DELETE FROM program;
+
+selectSlots:
+SELECT * FROM program_slot WHERE program_id = ? ORDER BY position ASC;
+
+selectAllSlots:
+SELECT * FROM program_slot;
+
+insertSlot:
+INSERT OR REPLACE INTO program_slot(id, program_id, position, routine_id, weekday, label)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteSlotsFor:
+DELETE FROM program_slot WHERE program_id = ?;
+
+deleteAllSlots:
+DELETE FROM program_slot;

@@ -1,0 +1,55 @@
+-- The exercise library. Seeded with ~82 common movements on first run; users
+-- add their own alongside them.
+--
+-- `muscle_groups` stays a JSON array in a TEXT column rather than a join table.
+-- The exercise is the merge unit, nothing queries by group at the SQL level
+-- (the per-group aggregation runs in Kotlin over an in-memory map), and a join
+-- table would add a child-row merge problem for no benefit.
+CREATE TABLE exercise (
+    id                    TEXT    NOT NULL PRIMARY KEY,
+    name                  TEXT    NOT NULL,
+    -- normaliseExerciseName(name): lowercased, punctuation stripped. Used to
+    -- match names returned by the routine builder against the library so
+    -- "Barbell Bench Press" and "barbell bench-press" are the same exercise.
+    name_key              TEXT    NOT NULL,
+    muscle_groups         TEXT    NOT NULL DEFAULT '[]',
+    equipment             TEXT    NOT NULL DEFAULT 'other',
+    is_custom             INTEGER NOT NULL DEFAULT 1,
+    notes                 TEXT    NOT NULL DEFAULT '',
+    -- Smallest weight change that can actually be loaded for this movement.
+    -- NULL means "derive from equipment" rather than "zero".
+    default_increment_kg  REAL,
+    created_at            INTEGER NOT NULL,
+    updated_at            INTEGER NOT NULL,
+    deleted_at            INTEGER
+);
+
+CREATE INDEX exercise_name_key_idx ON exercise(name_key);
+CREATE INDEX exercise_updated_idx ON exercise(updated_at);
+
+selectAll:
+SELECT * FROM exercise;
+
+selectLive:
+SELECT * FROM exercise WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE ASC;
+
+selectById:
+SELECT * FROM exercise WHERE id = ?;
+
+selectByNameKey:
+SELECT * FROM exercise WHERE name_key = ? AND deleted_at IS NULL;
+
+countAll:
+SELECT count(*) FROM exercise;
+
+upsert:
+INSERT OR REPLACE INTO exercise(
+    id, name, name_key, muscle_groups, equipment, is_custom, notes,
+    default_increment_kg, created_at, updated_at, deleted_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+softDelete:
+UPDATE exercise SET deleted_at = ?, updated_at = ? WHERE id = ?;
+
+deleteAll:
+DELETE FROM exercise;

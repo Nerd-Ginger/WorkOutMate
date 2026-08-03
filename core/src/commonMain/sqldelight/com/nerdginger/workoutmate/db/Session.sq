@@ -1,0 +1,159 @@
+-- A training session and the sets logged in it.
+--
+-- This is the source of truth for the entire app. Rotation position, streaks,
+-- consistency, progression suggestions and personal records are all pure
+-- functions of these two tables — none of them is stored as mutable state.
+CREATE TABLE session (
+    id               TEXT    NOT NULL PRIMARY KEY,
+    routine_id       TEXT,
+    -- Snapshotted, not joined: the routine may be renamed or deleted later, and
+    -- history should still say what you actually trained.
+    routine_name     TEXT    NOT NULL DEFAULT 'Workout',
+    program_id       TEXT,
+    -- Which scheduled slot this session satisfied. This is what lets rotation
+    -- position be derived rather than stored.
+    program_slot_id  TEXT,
+    started_at       INTEGER NOT NULL,
+    finished_at      INTEGER,
+    -- 'YYYY-MM-DD' computed in the user's local zone at start time, alongside
+    -- the zone itself. Bucketing by day from a UTC millisecond is wrong the
+    -- moment someone trains abroad or crosses a DST boundary.
+    local_date       TEXT    NOT NULL,
+    tz_id            TEXT    NOT NULL DEFAULT 'UTC',
+    notes            TEXT    NOT NULL DEFAULT '',
+    bodyweight_kg    REAL,
+    created_at       INTEGER NOT NULL,
+    updated_at       INTEGER NOT NULL,
+    deleted_at       INTEGER
+);
+
+CREATE INDEX session_started_idx ON session(started_at);
+CREATE INDEX session_local_date_idx ON session(local_date);
+CREATE INDEX session_slot_idx ON session(program_slot_id, started_at);
+CREATE INDEX session_routine_idx ON session(routine_id);
+
+CREATE TABLE exercise_set (
+    id                 TEXT    NOT NULL PRIMARY KEY,
+    session_id         TEXT    NOT NULL,
+    exercise_id        TEXT    NOT NULL,
+    block_id           TEXT,
+    -- Links a performed set back to the plan it came from. This is the anchor
+    -- the suggestion engine reads history through.
+    routine_item_id    TEXT,
+    order_in_session   INTEGER NOT NULL DEFAULT 0,
+    -- 1st/2nd/3rd set of that item, so a ramp (60/80/100) progresses per-set
+    -- rather than being flattened into one average.
+    index_in_item      INTEGER NOT NULL DEFAULT 0,
+    -- 'working' | 'warmup' | 'drop' | 'failure'. Warm-ups are excluded from
+    -- volume, personal records and progression.
+    kind               TEXT    NOT NULL DEFAULT 'working',
+    weight_kg          REAL,
+    reps               INTEGER,
+    rpe                REAL,
+    -- What the user was typing in at the time. Display only; weight_kg is truth.
+    display_unit       TEXT    NOT NULL DEFAULT 'kg',
+    completed          INTEGER NOT NULL DEFAULT 0,
+    is_pr              INTEGER,
+    -- A snapshot of the plan as it stood. Without this, editing a routine
+    -- rewrites what history claims you were aiming for.
+    target_reps_min    INTEGER,
+    target_reps_max    INTEGER,
+    target_rpe         REAL,
+    -- What the app suggested. Acceptance is derived by comparing these to the
+    -- actual values rather than stored as a flag.
+    suggested_weight_kg REAL,
+    suggested_reps     INTEGER,
+    suggestion_source  TEXT,
+    notes              TEXT    NOT NULL DEFAULT '',
+    performed_at       INTEGER NOT NULL,
+    created_at         INTEGER NOT NULL,
+    updated_at         INTEGER NOT NULL,
+    deleted_at         INTEGER
+);
+
+CREATE INDEX set_session_idx ON exercise_set(session_id);
+CREATE INDEX set_exercise_perf_idx ON exercise_set(exercise_id, performed_at);
+CREATE INDEX set_item_perf_idx ON exercise_set(routine_item_id, performed_at);
+
+selectAllSessions:
+SELECT * FROM session;
+
+selectLiveSessions:
+SELECT * FROM session WHERE deleted_at IS NULL ORDER BY started_at DESC;
+
+selectSessionById:
+SELECT * FROM session WHERE id = ?;
+
+-- The interrupted-workout check on launch. There is at most one.
+selectActiveSession:
+SELECT * FROM session
+WHERE finished_at IS NULL AND deleted_at IS NULL
+ORDER BY started_at DESC LIMIT 1;
+
+selectFinishedSessions:
+SELECT * FROM session
+WHERE finished_at IS NOT NULL AND deleted_at IS NULL
+ORDER BY started_at DESC;
+
+selectRecentFinished:
+SELECT * FROM session
+WHERE finished_at IS NOT NULL AND deleted_at IS NULL
+ORDER BY started_at DESC LIMIT ?;
+
+-- Drives rotation position: the most recent completed session that satisfied a
+-- slot of this programme.
+selectLastSlotSession:
+SELECT * FROM session
+WHERE program_id = ? AND program_slot_id IS NOT NULL
+  AND finished_at IS NOT NULL AND deleted_at IS NULL
+ORDER BY started_at DESC LIMIT 1;
+
+sessionsOnDate:
+SELECT * FROM session
+WHERE local_date = ? AND finished_at IS NOT NULL AND deleted_at IS NULL;
+
+upsertSession:
+INSERT OR REPLACE INTO session(
+    id, routine_id, routine_name, program_id, program_slot_id, started_at,
+    finished_at, local_date, tz_id, notes, bodyweight_kg,
+    created_at, updated_at, deleted_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+softDeleteSession:
+UPDATE session SET deleted_at = ?, updated_at = ? WHERE id = ?;
+
+deleteAllSessions:
+DELETE FROM session;
+
+selectAllSets:
+SELECT * FROM exercise_set;
+
+selectSetsForSession:
+SELECT * FROM exercise_set
+WHERE session_id = ? AND deleted_at IS NULL
+ORDER BY order_in_session ASC;
+
+selectSetsForExercise:
+SELECT * FROM exercise_set
+WHERE exercise_id = ? AND deleted_at IS NULL
+ORDER BY performed_at ASC;
+
+selectSetsForItem:
+SELECT * FROM exercise_set
+WHERE routine_item_id = ? AND deleted_at IS NULL
+ORDER BY performed_at DESC;
+
+upsertSet:
+INSERT OR REPLACE INTO exercise_set(
+    id, session_id, exercise_id, block_id, routine_item_id, order_in_session,
+    index_in_item, kind, weight_kg, reps, rpe, display_unit, completed, is_pr,
+    target_reps_min, target_reps_max, target_rpe,
+    suggested_weight_kg, suggested_reps, suggestion_source,
+    notes, performed_at, created_at, updated_at, deleted_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+softDeleteSet:
+UPDATE exercise_set SET deleted_at = ?, updated_at = ? WHERE id = ?;
+
+deleteAllSets:
+DELETE FROM exercise_set;

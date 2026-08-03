@@ -1,0 +1,130 @@
+-- A routine is one training day: an ordered list of blocks, each holding one
+-- exercise or several performed as a superset.
+--
+-- Blocks and items are real tables rather than embedded JSON for one decisive
+-- reason: progression needs a durable identity for a planned item. An index
+-- into a JSON array shifts the moment the user reorders a routine, silently
+-- re-pointing history at the wrong exercise. routine_item.id does not move.
+--
+-- Neither child carries updated_at/deleted_at. The routine is the merge unit;
+-- when an incoming routine wins, its children are replaced wholesale in one
+-- transaction. The backup wire format still nests blocks inside the routine
+-- object, so v1 backups import unchanged — storage shape and wire shape are
+-- allowed to differ.
+CREATE TABLE routine (
+    id             TEXT    NOT NULL PRIMARY KEY,
+    program_id     TEXT,
+    name           TEXT    NOT NULL,
+    notes          TEXT    NOT NULL DEFAULT '',
+    -- v1 had a free-text `folder`. Preserved rather than dropped so importing
+    -- an old backup loses nothing, even though programmes supersede it.
+    legacy_folder  TEXT    NOT NULL DEFAULT '',
+    archived       INTEGER NOT NULL DEFAULT 0,
+    created_at     INTEGER NOT NULL,
+    updated_at     INTEGER NOT NULL,
+    deleted_at     INTEGER
+);
+
+CREATE INDEX routine_program_idx ON routine(program_id);
+
+CREATE TABLE routine_block (
+    id          TEXT    NOT NULL PRIMARY KEY,
+    routine_id  TEXT    NOT NULL,
+    position    INTEGER NOT NULL,
+    -- 'single' | 'superset'. Redundant with item count by design: an explicitly
+    -- superset block with one item left in it should stay a superset while
+    -- being edited, rather than flickering type.
+    kind        TEXT    NOT NULL DEFAULT 'single',
+    rest_sec    INTEGER NOT NULL DEFAULT 120
+);
+
+CREATE INDEX routine_block_routine_idx ON routine_block(routine_id, position);
+
+CREATE TABLE routine_item (
+    id               TEXT    NOT NULL PRIMARY KEY,
+    block_id         TEXT    NOT NULL,
+    -- Denormalised from the block so "items in this routine" is one query.
+    routine_id       TEXT    NOT NULL,
+    position         INTEGER NOT NULL,
+    exercise_id      TEXT    NOT NULL,
+    target_sets      INTEGER NOT NULL DEFAULT 3,
+    target_reps_min  INTEGER,
+    target_reps_max  INTEGER,
+    target_weight_kg REAL,
+    target_rpe       REAL,
+    -- 'double' | 'linear' | 'reps_only' | 'none'
+    progression      TEXT    NOT NULL DEFAULT 'double',
+    -- Overrides the exercise default. NULL means derive.
+    increment_kg     REAL,
+    notes            TEXT    NOT NULL DEFAULT ''
+);
+
+CREATE INDEX routine_item_block_idx ON routine_item(block_id, position);
+CREATE INDEX routine_item_routine_idx ON routine_item(routine_id);
+CREATE INDEX routine_item_exercise_idx ON routine_item(exercise_id);
+
+selectAllRoutines:
+SELECT * FROM routine;
+
+selectLiveRoutines:
+SELECT * FROM routine
+WHERE deleted_at IS NULL AND archived = 0
+ORDER BY updated_at DESC;
+
+selectRoutineById:
+SELECT * FROM routine WHERE id = ?;
+
+selectRoutinesForProgram:
+SELECT * FROM routine WHERE program_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC;
+
+upsertRoutine:
+INSERT OR REPLACE INTO routine(
+    id, program_id, name, notes, legacy_folder, archived, created_at, updated_at, deleted_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+softDeleteRoutine:
+UPDATE routine SET deleted_at = ?, updated_at = ? WHERE id = ?;
+
+deleteAllRoutines:
+DELETE FROM routine;
+
+selectBlocks:
+SELECT * FROM routine_block WHERE routine_id = ? ORDER BY position ASC;
+
+selectAllBlocks:
+SELECT * FROM routine_block;
+
+insertBlock:
+INSERT OR REPLACE INTO routine_block(id, routine_id, position, kind, rest_sec)
+VALUES (?, ?, ?, ?, ?);
+
+deleteBlocksFor:
+DELETE FROM routine_block WHERE routine_id = ?;
+
+deleteAllBlocks:
+DELETE FROM routine_block;
+
+selectItems:
+SELECT * FROM routine_item WHERE routine_id = ? ORDER BY position ASC;
+
+selectItemsForBlock:
+SELECT * FROM routine_item WHERE block_id = ? ORDER BY position ASC;
+
+selectItemById:
+SELECT * FROM routine_item WHERE id = ?;
+
+selectAllItems:
+SELECT * FROM routine_item;
+
+insertItem:
+INSERT OR REPLACE INTO routine_item(
+    id, block_id, routine_id, position, exercise_id, target_sets,
+    target_reps_min, target_reps_max, target_weight_kg, target_rpe,
+    progression, increment_kg, notes
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteItemsFor:
+DELETE FROM routine_item WHERE routine_id = ?;
+
+deleteAllItems:
+DELETE FROM routine_item;

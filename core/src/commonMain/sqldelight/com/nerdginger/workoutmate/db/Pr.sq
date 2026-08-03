@@ -1,0 +1,43 @@
+-- Personal records.
+--
+-- This table is a CACHE, not a source of truth. Every row is derivable from the
+-- set log, and `rebuildPrs()` recomputes the lot. Treating it as authoritative
+-- is what caused a real bug in v1: merging a backup could bring in older sets
+-- without recomputing records, leaving the two permanently disagreeing.
+--
+-- The primary key is the composite "exerciseId:kind", which is what makes
+-- writing a record idempotent — one row per exercise per kind, always.
+CREATE TABLE pr (
+    id           TEXT    NOT NULL PRIMARY KEY,
+    exercise_id  TEXT    NOT NULL,
+    -- 'e1rm' | 'weight' | 'volume'
+    kind         TEXT    NOT NULL,
+    value        REAL    NOT NULL,
+    weight_kg    REAL,
+    reps         INTEGER,
+    set_id       TEXT,
+    session_id   TEXT,
+    achieved_at  INTEGER NOT NULL,
+    updated_at   INTEGER NOT NULL,
+    deleted_at   INTEGER
+);
+
+CREATE INDEX pr_exercise_idx ON pr(exercise_id);
+
+selectAll:
+SELECT * FROM pr;
+
+selectLive:
+SELECT * FROM pr WHERE deleted_at IS NULL;
+
+selectForExercise:
+SELECT * FROM pr WHERE exercise_id = ? AND deleted_at IS NULL;
+
+upsert:
+INSERT OR REPLACE INTO pr(
+    id, exercise_id, kind, value, weight_kg, reps, set_id, session_id,
+    achieved_at, updated_at, deleted_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteAll:
+DELETE FROM pr;

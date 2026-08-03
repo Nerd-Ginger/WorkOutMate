@@ -1,0 +1,38 @@
+-- Bodyweight and tape measurements. Separate from sets because they are not
+-- training volume and must never be counted as such.
+CREATE TABLE measurement (
+    id          TEXT    NOT NULL PRIMARY KEY,
+    -- 'bodyweight' | 'waist' | 'chest' | 'hips' | 'thigh' | 'arm' | 'bodyfat'
+    type        TEXT    NOT NULL DEFAULT 'bodyweight',
+    value       REAL    NOT NULL,
+    unit        TEXT    NOT NULL DEFAULT 'kg',
+    measured_at INTEGER NOT NULL,
+    notes       TEXT    NOT NULL DEFAULT '',
+    created_at  INTEGER NOT NULL,
+    updated_at  INTEGER NOT NULL,
+    deleted_at  INTEGER
+);
+
+CREATE INDEX measurement_type_at_idx ON measurement(type, measured_at);
+
+selectAll:
+SELECT * FROM measurement;
+
+selectLiveByType:
+SELECT * FROM measurement
+WHERE type = ? AND deleted_at IS NULL
+ORDER BY measured_at ASC;
+
+selectById:
+SELECT * FROM measurement WHERE id = ?;
+
+upsert:
+INSERT OR REPLACE INTO measurement(
+    id, type, value, unit, measured_at, notes, created_at, updated_at, deleted_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+softDelete:
+UPDATE measurement SET deleted_at = ?, updated_at = ? WHERE id = ?;
+
+deleteAll:
+DELETE FROM measurement;

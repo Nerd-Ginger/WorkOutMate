@@ -1,118 +1,124 @@
 # WorkOutMate
 
-An offline Android workout tracker. Create a routine, log what you actually lifted against
-it, and watch the numbers move.
+An offline Android workout tracker. Get a programme, know what you're training today, log
+what you actually lifted, and watch the numbers move.
 
 No account, no server, no tracking. Everything lives on the device — which is why exporting
 a backup is a first-class feature rather than a buried setting.
 
+> **Status: v2 in progress.** The app is being rebuilt from a WebView-hosted HTML UI into
+> Kotlin Multiplatform + Compose. The `core` module is real and tested; the Compose UI is
+> being built out. See `docs/PROJECT.md` for what the app is *for*, and the plan for how it
+> gets there.
+
 ## What it does
 
-- **Routines** — ordered exercises with target sets, rep ranges and RPE. A superset is just
-  a block with more than one exercise in it.
-- **Session logging** — start from a routine, log weight × reps per set, mark warm-ups,
-  record RPE. What you did last time for that exercise is shown while you enter the next one.
-- **Rest timer** — starts when you complete a set, keeps running with the screen off, and
+- **Find a programme** — pick a proven starter programme, or answer a fixed set of questions
+  and have Claude write one. This is the front door, not a side feature.
+- **Know what's due today** — routines are scheduled by weekday, by rotation, or against a
+  weekly target. The home screen answers "what am I training today" and tells you what you
+  missed.
+- **Routines** — ordered blocks of exercises with target sets, rep ranges and RPE. A superset
+  is just a block with more than one exercise in it.
+- **Session logging** — log weight × reps per set, mark warm-ups, record RPE. Each set
+  prefills with a suggestion and the reason for it, which you can always override.
+- **Rest timer** — starts when you complete a set, survives the screen going off, and
   finishes with a tone and a vibration.
-- **Personal records** — best estimated 1RM, best weight, and best session volume, detected
-  automatically when you finish.
-- **Progress charts** — estimated 1RM over time per exercise, weekly tonnage, sets per
-  muscle group per week, and a training-frequency heatmap. Hand-drawn SVG, no chart library.
+- **Personal records** — best estimated 1RM, best weight and best session volume, detected
+  automatically.
+- **Consistency** — sessions per week against your target, week streaks, and a
+  training-frequency heatmap.
+- **Progress charts** — estimated 1RM over time per exercise, weekly tonnage, sets per muscle
+  group per week. Drawn directly, no chart library.
 - **Bodyweight and measurements** — tracked separately, with their own chart.
-- **Save progress** — export a JSON backup anywhere on the device, and import it back with
-  either *replace everything* or *merge*.
-- **Build me a routine** — answer a fixed set of questions and have Claude write a
-  programme that imports straight into the app.
-
-## Building it
-
-```sh
-./gradlew assembleDebug     # → app/build/outputs/apk/debug/app-debug.apk
-```
-
-Needs JDK 17+ and an Android SDK with API 36. CI builds the APK on every push and attaches
-it as an artifact.
-
-## Testing
-
-```sh
-node --test tests/*.test.mjs   # pure logic: no dependencies, no framework
-node tests/browser-smoke.mjs   # the real UI in Chromium
-```
-
-The first suite covers the maths and the rules — estimated 1RM, volume, ISO-week bucketing,
-PR detection, backup merge semantics, and routine-plan validation. Those modules
-(`stats.js`, `merge.js`, `validate.js`, `scale.js`) are kept strictly DOM-free precisely so
-Node can import them straight out of the assets directory: real unit tests, zero
-dependencies, no build step.
-
-The second drives the actual app in a browser — IndexedDB persistence across a reload, the
-session logger, chart rendering, and a full backup round trip.
-
-Neither can touch the Kotlin shell. `docs/SMOKE_CHECKLIST.md` covers what only a device can
-prove.
+- **Save progress** — export a JSON backup anywhere on the device and import it back, either
+  *replace everything* or *merge*.
 
 ## How it's put together
 
-A single-Activity Android app wrapping a WebView. The UI is HTML, CSS and JavaScript in
-`app/src/main/assets/www`; the Kotlin around it handles the things a web page cannot.
+Two Gradle builds, and the split is the most important structural decision in the project.
 
 ```
-app/src/main/java/com/nerdginger/workoutmate/
-  MainActivity.kt   WebView setup, asset loader, back handling
-  NativeBridge.kt   the only JS↔Kotlin door
-  BackupIo.kt       file save/open via the Storage Access Framework
-  RestTimer.kt      countdown, notification, tone and vibration
-  ClaudeClient.kt   the Anthropic API call
-  SecureStore.kt    Keystore-backed API key storage
-
-app/src/main/assets/www/
-  js/stats.js       training maths            ← unit tested
-  js/merge.js       backup validate + merge   ← unit tested
-  js/validate.js    routine-plan validation   ← unit tested
-  js/scale.js       chart scales and ticks    ← unit tested
-  js/db.js          IndexedDB schema and migrations
-  js/charts.js      hand-rolled SVG charts
-  js/skill.js       the routine-builder prompt and import
-  js/ui/            one module per screen
+core/     ← a SEPARATE Gradle build. No Android Gradle Plugin, ever.
+            Domain, database, engines, presenters, navigation.
+app/      ← the Android app: Compose UI and the platform adapters.
 ```
 
-### Why a virtual `https://` origin
+`core` is Kotlin Multiplatform with a JVM target and no Android dependency of any kind. That
+means it compiles and runs its whole test suite — against a real SQLite engine — with no
+Android SDK, no emulator and no Google Maven access:
 
-The WebView serves the app through `WebViewAssetLoader` rather than from `file://`. On a
-`file://` origin every page gets an opaque origin: IndexedDB is unreliable to unavailable
-and `crypto.randomUUID` doesn't exist. Over the virtual origin, storage behaves exactly as
-it would in a normal browser. This is load-bearing — if it regresses, data stops persisting.
+```sh
+./gradlew -p core check      # seconds, offline
+./gradlew assembleDebug      # → app/build/outputs/apk/debug/app-debug.apk
+```
 
-### Why the Claude call lives in Kotlin
+The Android build needs JDK 17+ and an SDK with API 36. CI runs both and attaches the APK.
 
-The API key never reaches the web layer. The page can ask *whether* a key exists and ask for
-a request to be *made* with it, but can never read it. The key sits in Keystore-backed
-`EncryptedSharedPreferences`, and because the request is an ordinary HTTP call rather than a
-browser `fetch`, there is no CORS to satisfy.
+### Why `core` is a separate build, not a module
 
-If a device's keystore is broken, the app says so and steers you to the copy/paste builder
-instead of falling back to storing the key in the clear.
+Gradle configures every project in a build on every invocation. If `core` were a module
+alongside `:app`, running a single unit test would still apply the Android Gradle Plugin —
+so `core` would be untestable anywhere the Android SDK or Google's Maven is unavailable.
+
+The second reason is worth as much: `core/settings.gradle.kts` declares **only** Maven
+Central. Adding an androidx dependency to `core` therefore fails immediately with a clean
+"not found" rather than resolving in CI and quietly making the module untestable. The rule
+that core stays platform-free is enforced by the build, not by discipline.
+
+The practical consequence is that as much logic as possible lives in `core`. Scheduling,
+progression, statistics, validation, backup merging, chart geometry and every screen's state
+are all there and all unit-tested. The Compose layer is deliberately dumb — no conditional
+logic beyond rendering, every branch a field on a state object.
+
+### Ports, not platform code
+
+`core` defines interfaces — `Clock`, `SecretStore`, `HttpPoster`, `DocumentIo`, `Notifier`,
+`AlarmScheduler` — and `app` implements them. Tests substitute fakes, which is what keeps
+every consumer of a platform capability locally testable.
+
+### Why SQLDelight
+
+Its SQL is checked at build time and its JDBC driver runs the suite against real SQLite with
+no emulator. That is not a small convenience: it is the difference between a data layer that
+is tested and one that is not.
+
+It earns its keep. The first schema used `ON CONFLICT ... DO UPDATE` and was rejected at
+build time — upsert needs SQLite 3.24, which reached Android at API 30, while `minSdk 26`
+ships 3.18. It caught SQL that would have compiled fine and crashed on older phones.
 
 ### Data model
 
-IndexedDB, schema v1. Every record carries `updatedAt` and a nullable `deletedAt`; deletes
-are soft. That is what lets a merge-import tell "this record is new to me" apart from "I
-deleted this on purpose" — with hard deletes, restoring any older backup would quietly bring
-everything back.
+Every record carries `updatedAt` and a nullable `deletedAt`; deletes are soft. That is what
+lets a merge-import tell "this record is new to me" apart from "I deleted this on purpose" —
+with hard deletes, restoring any older backup would quietly bring everything back.
+
+One rule governs the rest: **the session log is the only source of truth.** Rotation
+position, streaks, consistency, suggestions and personal records are all pure functions of
+it, never stored mutable state. Anything derived and stored would desynchronise the moment a
+backup was merged — and merging is a first-class operation here.
 
 Weights are stored in kilograms throughout and converted only for display, so switching
-units never alters a logged number.
+units never alters a logged number. Pounds are merely the default.
+
+### Why the Claude call lives in Kotlin
+
+The API key never reaches the UI layer. The app can ask *whether* a key exists and ask for a
+request to be *made* with it, but can never read it back. The key sits in Keystore-backed
+storage, and because the request is an ordinary HTTP call there is no CORS to satisfy.
+
+If a device's keystore is broken, the app says so and steers you to the copy/paste builder
+rather than falling back to storing the key in the clear.
 
 ## Build me a routine
 
 Two paths to the same JSON contract, defined in
-`app/src/main/assets/www/skills/build-me-a-routine.v1.json`:
+`core/src/jvmMain/resources/content/build-me-a-routine.v1.json`:
 
-- **With an API key** — the request goes out through Kotlin, and the reply is pinned to the
-  schema by the API's structured-output support.
+- **With an API key** — the request goes out through Kotlin, pinned to the schema by the
+  API's structured-output support.
 - **Without one** — the app renders the identical prompt to copy into Claude yourself, then
-  validates whatever you paste back. No key, no network.
+  validates whatever you paste back. No key, no network. This is the primary path.
 
 Either way the result is validated before anything is written, you see a preview of what
 will be created, and an import is all or nothing. The same script is checked in as a Claude
@@ -121,13 +127,15 @@ cannot drift.
 
 ## Known limitations
 
-- The rest timer is tied to the Activity, so if Android kills the process mid-rest the alert
-  is lost. `AlarmManager` is the fix if this proves annoying in practice.
-- Automatic snapshots survive the app's storage being corrupted, but not uninstalling —
-  they complement exports rather than replacing them.
+- Reminders are best-effort. They use `AlarmManager` with a time window rather than exact
+  alarms, and OEM battery managers can still delay them. The home screen is always the
+  source of truth for what's due.
+- Automatic snapshots survive the app's storage being corrupted, but not uninstalling — they
+  complement exports rather than replacing them.
 - Debug builds only for now; release signing isn't set up.
 
 ## Not included, deliberately
 
 No cloud sync or accounts, no social feed, no exercise demo videos, no wearables or health
-APIs, no automated progression, and no iOS build.
+APIs, no nutrition tracking, and no iOS build yet — though `core` is structured so that
+adding one is additive rather than a rewrite.
