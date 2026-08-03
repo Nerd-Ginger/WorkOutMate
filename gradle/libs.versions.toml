@@ -10,8 +10,10 @@
 [versions]
 # Held deliberately: this is the AGP version CI is already green on.
 agp = "8.11.1"
-kotlin = "2.1.0"
-composeMultiplatform = "1.7.3"
+# Kotlin and Compose Multiplatform are a matched pair — CMP 1.8.x requires
+# Kotlin 2.1.20 or newer. Bump them together or not at all.
+kotlin = "2.1.20"
+composeMultiplatform = "1.8.2"
 sqldelight = "2.0.2"
 serialization = "1.8.0"
 datetime = "0.6.1"

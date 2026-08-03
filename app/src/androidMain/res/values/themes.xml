@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A platform theme, not an AppCompat one: the app hosts Compose from a
+         plain ComponentActivity and does not depend on appcompat at all.
+         Inheriting Theme.AppCompat would fail to resolve at resource-link time.
+
+         Compose paints everything, so this theme only has to avoid a white
+         flash before first frame and keep the system bars in colour. -->
+    <style name="Theme.WorkOutMate" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="android:statusBarColor">@color/app_background</item>
+        <item name="android:navigationBarColor">@color/app_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

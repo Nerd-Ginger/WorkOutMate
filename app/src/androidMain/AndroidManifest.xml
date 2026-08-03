@@ -16,9 +16,14 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.WorkOutMate">
 
+        <!-- Portrait-locked on purpose. This is a one-handed logger used
+             between sets; landscape buys nothing, and pinning the orientation
+             removes a whole class of state-retention problems, which is what
+             lets screen state live in plain presenters instead of ViewModels. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode"
             android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
