@@ -28,34 +28,53 @@ Two consequences worth stating explicitly, because they drove real decisions:
   set is worse than no chart. This is why the write path is defensive and why
   backup is treated as core rather than as a settings-screen extra.
 
-## The problem being solved
+## Why this exists
 
-**[inferred — needs confirmation, see Q1]** Existing trackers are competent but
-each carries a cost: an account, a server, a subscription, a social feed, or a
-paywall on the progress charts. This app is an attempt at the tracking core
-with none of that attached — your data on your device, no account, nothing to
-subscribe to.
+Three reasons, in the owner's words **[stated]**:
 
-The market research done during planning bears out that the *category* works
-without a backend: FitNotes is fully offline, free forever, no account, and
-people rely on it for years. So "no server" is a viable product decision, not a
-compromise.
+1. **"I want to build my own."** Wanting to own the thing is a legitimate
+   first-order reason and it is deliberately listed first. It means the project
+   is not competing with Hevy or Strong on features, and "app X already does
+   this" is not, by itself, an argument against building it here.
+2. **"I want to get in shape."** The app has a job to do for a real person with
+   a real goal. That is the test any feature has to pass.
+3. **"I don't care to give my data to other people either."** Data stays on the
+   device. No account, no server, no analytics.
 
-**What is not yet written down is why the existing options weren't enough for
-you specifically.** That answer should replace this section, because it's what
-decides several open questions below.
+Note what is *not* here: there is no list of grievances with existing apps
+driving this. That matters, because it means the brief should not be written as
+"the tracker that finally gets X right" — reason 1 and reason 3 are the whole
+of it. The market research done during planning simply confirms the shape is
+viable: FitNotes is fully offline, free forever and no-account, and people rely
+on it for years. So "no server" is a sound product decision rather than a
+sacrifice.
 
 ## Who it's for
 
-**[inferred — needs confirmation, see Q2]** Primarily the owner. Someone who
-already knows what programme they're running and wants to record and review it,
-rather than be told what to do.
+> "me, and anyone else who struggles to find the right workouts and maintain
+> them" **[stated]**
 
-That reading shaped the app in ways that would be wrong for a public release —
-no onboarding, no empty-state hand-holding beyond a sentence, no exercise
-demonstrations, and a "Build me a routine" feature that asks you to paste an API
-key or copy a prompt. All defensible for one informed user; all questionable for
-strangers.
+So: the owner first, but not only the owner. Two words in that sentence carry
+real weight and should be read deliberately —
+
+- **"find"** — if people struggle to work out *what* to train, then "Build me a
+  routine" is not a convenience bolted onto a logger; it is close to the front
+  door. That is a bigger claim than the current build makes, and it is flagged
+  as **D5** below rather than assumed.
+- **"maintain"** — adherence is part of the problem, not just recording. The
+  current app is deliberately passive: no notifications, no streaks, no
+  nudging. That was the right call for a single informed user and is an open
+  question for this wider audience. Also **D5**.
+
+The immediate practical consequence: **anyone who isn't the owner cannot be
+asked for an Anthropic API key.** That effectively settles the routine-builder
+UX — the copy/paste path is the primary route and the API-key path is the
+power-user shortcut, not the other way round.
+
+Beyond that, the app currently assumes an informed user: no onboarding, no
+empty-state hand-holding beyond a sentence, no exercise demonstrations, and
+terms like RPE used without explanation. Defensible for the owner; a real gap
+for "anyone else". Not yet addressed.
 
 ## What it does
 
@@ -98,6 +117,11 @@ Feature scope selected for v1:
 3. You can change phones, or wipe the app, without losing your training history.
 4. You never think about the app between workouts — no notifications to
    dismiss, no feed, no streak guilt.
+
+Point 4 is now in open tension with "anyone else who struggles to … maintain
+them". Helping someone stick to a programme usually means *some* prompting, and
+this app currently does none. Both positions are defensible; they are not both
+true at once. See **D5**.
 
 ## Constraints that shaped the build
 
@@ -178,23 +202,36 @@ Undecided. Currently debug-signed APKs from CI, suitable for sideloading. Play
 Store release would require signing keys, a privacy policy, store assets, and a
 target-API commitment.
 
+### D5 — How far does "find the right workouts and maintain them" go?
+
+Raised by the audience answer, not yet decided. The app as built is a logger
+with an optional routine generator and no adherence features at all. Taking the
+sentence at full strength would change its centre of gravity:
+
+- **Finding** — does "Build me a routine" become the primary entry point (open
+  the app, answer nine questions, get a programme), rather than something you
+  reach for once? Does the app need built-in starter programmes for people with
+  no key and no appetite for copy/paste?
+- **Maintaining** — does the app do anything to keep you coming back? Scheduled
+  reminders, a "you're due for Day B" prompt, and streak or consistency views
+  are all standard in this category and all currently absent by design.
+
+**Nothing has been built for either.** Recorded here for a decision rather than
+inferred, because it would meaningfully change what the app is.
+
 ---
 
 ## Questions I still need answered
 
-1. **What made the existing apps not good enough?** Hevy, Strong and FitNotes
-   all do the core loop, and FitNotes is free and offline. Knowing what
-   specifically annoyed you decides what this app should be *better* at, rather
-   than merely equivalent to.
-2. **Who is this for?** Only you, you and a few people you'd hand an APK to, or
-   strangers? This changes onboarding, the API-key UX, and whether the app can
-   assume its user already knows what RPE means.
-3. **Web version: dropped or deferred?** (D3)
-4. **What does "done" look like?** Is there a moment where you'd stop building
+1. **Web version: dropped or deferred?** (D3)
+2. **How far does the "find and maintain" goal go?** (D5) — this is the biggest
+   open question in the document; the answer decides whether the app stays a
+   logger or grows into something that also coaches adherence.
+3. **What does "done" look like?** Is there a moment where you'd stop building
    and just use it, or is this an ongoing project? It decides whether to invest
    in polish or in extensibility.
-5. **kg or lb?** Both are supported and switchable; this only affects the
+4. **kg or lb?** Both are supported and switchable; this only affects the
    default.
-6. **Does anyone but you need "Build me a routine" to work?** If yes, asking for
-   an Anthropic API key is a hard barrier and the copy/paste path becomes the
-   primary route rather than the fallback.
+5. **Do the "anyone else" users get onboarding?** Exercise explanations, an RPE
+   primer, a guided first routine — none of it exists. Cheap to add later,
+   awkward to retrofit if the audience answer is taken seriously now.
