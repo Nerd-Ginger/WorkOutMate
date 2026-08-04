@@ -119,6 +119,12 @@ INSERT OR REPLACE INTO session(
     created_at, updated_at, deleted_at
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
+-- Closing a session is a targeted update rather than a re-upsert, so finishing
+-- cannot accidentally rewrite started_at, local_date or tz_id — the three
+-- columns that make history honest about when and where you trained.
+finishSession:
+UPDATE session SET finished_at = ?, updated_at = ? WHERE id = ?;
+
 softDeleteSession:
 UPDATE session SET deleted_at = ?, updated_at = ? WHERE id = ?;
 
