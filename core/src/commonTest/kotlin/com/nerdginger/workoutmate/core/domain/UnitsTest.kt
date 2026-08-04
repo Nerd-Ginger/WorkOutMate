@@ -29,7 +29,7 @@ class UnitsTest {
     // without drift. Keeping that exact case so the behaviour is pinned.
     @Test
     fun `100 kg displays as 220 point 5 pounds`() {
-        assertEquals(220.46, displayWeight(100.0, WeightUnit.LB))
+        assertEquals(220.5, displayWeight(100.0, WeightUnit.LB))
     }
 
     @Test
@@ -39,10 +39,32 @@ class UnitsTest {
         }
     }
 
+    // v1: Math.round(v * 2) / 2. There is no 0.46 lb plate, so a load is shown
+    // at the smallest increment a gym can actually put on the bar.
     @Test
-    fun `display rounds to two decimals`() {
-        assertEquals(5.51, roundForDisplay(5.51155))
+    fun `loads display at the nearest half unit`() {
+        assertEquals(5.5, roundForDisplay(5.51155))
         assertEquals(2.5, roundForDisplay(2.5))
+        assertEquals(102.5, roundForDisplay(102.4))
+        assertEquals(102.0, roundForDisplay(102.2))
+    }
+
+    // Half-unit rounding must not reach a field the user is about to edit:
+    // opening a 102.3 kg row and saving it must not rewrite it to 102.5.
+    @Test
+    fun `an editable weight keeps two decimals so editing cannot quantise it`() {
+        assertEquals(102.3, roundForInput(102.3))
+        assertEquals(5.51, roundForInput(5.51155))
+        assertEquals(102.3, displayWeightForInput(102.3, WeightUnit.KG))
+    }
+
+    // A barbell increment is wrong for a bodyweight series whose entire job is
+    // showing small changes: 82.3 kg must not render as 82.5.
+    @Test
+    fun `bodyweight and measurements keep one decimal`() {
+        assertEquals(82.3, roundMeasurementForDisplay(82.3))
+        assertEquals(82.3, roundMeasurementForDisplay(82.34))
+        assertEquals(36.5, roundMeasurementForDisplay(36.47))
     }
 
     @Test
@@ -50,6 +72,10 @@ class UnitsTest {
         // -0.0 formats as "-0" and reads as a bug to the user.
         assertEquals(0.0, roundForDisplay(-0.0))
         assertTrue(1.0 / roundForDisplay(-0.0) > 0, "should be positive zero")
+        assertEquals(0.0, roundForInput(-0.0))
+        assertTrue(1.0 / roundForInput(-0.0) > 0, "should be positive zero")
+        assertEquals(0.0, roundMeasurementForDisplay(-0.0))
+        assertTrue(1.0 / roundMeasurementForDisplay(-0.0) > 0, "should be positive zero")
     }
 
     @Test
