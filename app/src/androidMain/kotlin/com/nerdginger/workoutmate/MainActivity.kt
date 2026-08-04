@@ -3,7 +3,10 @@ package com.nerdginger.workoutmate
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.remember
+import com.nerdginger.workoutmate.core.presentation.LibraryPresenter
 import com.nerdginger.workoutmate.ui.App
+import com.nerdginger.workoutmate.ui.theme.rememberAppFonts
 
 /**
  * The single Activity hosting the whole app.
@@ -21,6 +24,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { App() }
+        val graph = (application as WorkOutMateApp).graph
+        // Seeding is done here rather than in Application.onCreate: it is 82
+        // inserts, and paying that on the main thread before any window exists
+        // slows every launch to benefit only the first.
+        graph.onStart()
+
+        setContent {
+            App(
+                fonts = rememberAppFonts(),
+                libraryPresenter = remember { LibraryPresenter(graph.exercises) },
+            )
+        }
     }
 }

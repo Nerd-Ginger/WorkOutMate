@@ -161,6 +161,22 @@ getter for the key. `SecretStore` offers presence, set, and clear only.
 
 ## Site map
 
+> **Superseded for views.** The design prototype in `Black and orange palette
+> views.zip` is now the source of truth for what screens exist and what they
+> look like. Where it and the map below disagree, the prototype wins.
+>
+> The differences are real, not cosmetic. The prototype ships **six** tabs —
+> Today · Routines · Charts · Exercises · Body · Data — against the five here:
+> Exercise library is promoted to top level rather than living under Plan, and
+> Data replaces Settings, which follows from backup being a primary feature
+> rather than a settings row. It also has no separate first-run screen, no
+> session summary and no programme/schedule editor; those are in this map
+> because the v2 brief asks for them, and they still need designing.
+>
+> This section stays because it is the *behavioural* spec — what each screen has
+> to answer — and because the gaps above are the list of what the prototype does
+> not yet cover.
+
 15 screens. **Bold = new in v2.** Five tabs: Today · Plan · Progress · Body ·
 Settings.
 
